@@ -24,7 +24,7 @@
 
 .container {
   margin: 0;
-  padding-top: 10vh;
+  padding: 1.75em 1em;
   display: flex;
   flex-direction: column;
   justify-content: center;
@@ -136,6 +136,13 @@ select:focus {
   outline: none;
 }
 
+.topDisplay {
+  display: flex;
+  flex-direction: row;
+  justify-content: space-between;
+  align-items: center;
+}
+
 /*  Card Styling  */
 
 .card {
@@ -153,7 +160,7 @@ select:focus {
   transform: translateY(-4px);
 }
 
-.collections {
+.cDisplay {
   display: flex;
   flex-wrap: wrap;
   justify-content: start;
@@ -263,8 +270,67 @@ select:focus {
   background: white;
   border-radius: 12px;
   padding: 2em;
-  width: 320px;
+  width: min(90vw, 720px);
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
+}
+
+/* Card search modal */
+.modal-wide {
+  width: min(55vw, 680px);
+  max-height: 85vh;
+  overflow-y: auto;
+}
+
+.modal-backdrop.modal-backdrop-wide {
+  justify-content: flex-start;
+  padding-left: 5vw;
+}
+
+/* Hover preview panel */
+@media screen and (width >= 1310px) {
+  .modal-preview {
+    position: fixed;
+    top: 50%;
+    transform: translateY(-50%);
+    right: 4vw;
+    max-width: 488px;
+    pointer-events: none;
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    justify-content: center;
+    z-index: 11;
+  }
+
+  .modal-preview img.modal-preview-img--dfc {
+    width: 300px;
+  }
+}
+@media screen and (width < 1310px) {
+  .modal-preview {
+    position: fixed;
+    top: 50%;
+    transform: translateY(-50%);
+    right: 4vw;
+    max-width: 240px;
+    pointer-events: none;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    z-index: 11;
+  }
+
+  .modal-preview img.modal-preview-img--dfc {
+    width: 240px;
+  }
+}
+
+.modal-preview img {
+  width: 100%;
+  height: auto;
+  border-radius: 24px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.6);
 }
 
 .modal input,
@@ -273,4 +339,94 @@ select:focus {
   display: block;
   width: 100%;
   margin: 0.5em 0;
+}
+
+.modal-card-list {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 8px;
+  max-height: 60vh;
+  overflow-y: auto;
+  margin-top: 0.75em;
+}
+
+.modal-card-image{ 
+  width: 100%;
+  height: auto;
+  border-radius: 6px;
+  transition: transform 0.15s ease;
+}
+
+.modal-card-image:hover {
+  transform: scale(1.05);
+}
+
+.type-selector {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 0.75em 0;
+}
+
+.type-checkbox {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: 20px;
+  border: 1px solid #ccc;
+  cursor: pointer;
+  font-size: 0.9em;
+  user-select: none;
+  transition: all 0.15s ease;
+  background: white;
+}
+
+.type-checkbox:hover {
+  border-color: #396cd8;
+}
+
+.type-checkbox input[type="checkbox"] {
+  display: none;  /* hides the checkbox, style the label as a pill*/
+  width: auto;
+  margin: 0;
+  box-shadow: none;
+}
+
+/* Checked state - highlight pill*/
+.type-checkbox:has(input:checked) {
+  background-color: #396cd8;
+  border-color: #396cd8;
+  color: white;
+}
+
+/*  Mana Selector Styling */
+.mana-selector {
+  display: flex;
+  gap: 12px;
+  margin: 16px 0;
+  justify-content: center;
+}
+
+.mana-column {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+}
+
+.mana-column button {
+  padding: 4px 10px;
+  font-size: 14px;
+}
+
+.mana-count-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.mana-symbol {
+  width: 20px;
+  height: 20px;
 }
