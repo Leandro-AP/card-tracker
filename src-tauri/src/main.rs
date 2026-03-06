@@ -34,12 +34,11 @@ fn init_db(app_handle: AppHandle) -> Result<(), String> {
     conn.execute(
         "CREATE TABLE IF NOT EXISTS cards_mtg (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
-            collection_id INTEGER,
+            scryfall_id TEXT UNIQUE NOT NULL,
             
             name TEXT NOT NULL,
             set_name TEXT DEFAULT 'N/A',
             rarity TEXT,
-            qtt INTEGER,
             image_url TEXT DEFAULT 'N/A',
             
             mana_cost TEXT, 
@@ -58,7 +57,17 @@ fn init_db(app_handle: AppHandle) -> Result<(), String> {
     )
     .map_err(|e| e.to_string())?;
 
-    // Make mana cost string like: 'xcolourless|xcolour'
+    // === Collection:Cards Junction Table
+    conn.execute("
+        CREATE TABLE IF NOT EXISTS collection_cards (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            collection_id INTEGER NOT NULL,
+            game_id TEXT NOT NULL,
+            card_id INTEGER NOT NULL,
+            qtt INTEGER NOT NULL DEFAULT 1,
+            FOREIGN KEY (collection_id) REFERENCES collections(id) ON DELETE CASCADE,
+            UNIQUE(collection_id, card_id)  -- prevents duplicate entries per collection
+        )", []).map_err(|e| e.to_string())?;
 
     println!("Database initialized successfully.");
     Ok(())
