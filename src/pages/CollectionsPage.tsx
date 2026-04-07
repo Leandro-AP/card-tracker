@@ -77,10 +77,10 @@ export default function CollectionsPage() {
                 <h3 className="collection-name">{c.name}</h3>
                 <div className="collection-info">
                   {/* <p>Type: {GAME_INFO[c.game_id].name || c.game_id}</p> */}
-                  <p>
+                  <p style={{ lineHeight: 0.75 }}>
                     Created: {new Date(c.created_at).toLocaleDateString()} <br />
-                    {new Date(c.created_at).toLocaleDateString() !==
-                      new Date(c.updated_at).toLocaleDateString() && (  // Only show updated date when it is different from created date
+                    {new Date(c.created_at).toLocaleString() !==
+                      new Date(c.updated_at).toLocaleString() && (  // Only show updated date when it is different from created date
                         <>
                           <br />
                           Updated: {new Date(c.updated_at).toLocaleDateString()}

@@ -3,7 +3,7 @@ import { useEffect, useRef, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 
 import "../App.css";
-import { ArrowBigLeft, Plus } from "lucide-react";
+import { ArrowBigLeft, Plus, FileSpreadsheet } from "lucide-react";
 
 import { Collection } from "../types/collections";
 import { MagicTG, Pokemon, Yugioh } from "../types/cards";
@@ -75,19 +75,27 @@ export default function CollectionDetailPage() {
         fethcCards();
     }, [collection])
 
+    const createExcel = async (colId: number) => {
+        await invoke("excel_gen", {collectionId: colId, gameId: collection.game_id})
+    }
+
     return (
         <div className="container">
             <div className="topDisplay">
-                <button onClick={() => navigate(-1)}><ArrowBigLeft /></button>
+                <div>
+                    <button onClick={() => navigate(-1)}><ArrowBigLeft /></button>
+                    &nbsp;
+                    <button onClick={() => createExcel(collectionId)}><FileSpreadsheet/></button>
+                </div>
 
                 {collection ? (
                     <>
                         <h1>{collection.name}</h1>
-                        <div>
+                        <div className="datesDiv">
                             <span>Created: {new Date(collection.created_at).toLocaleDateString()}</span>
-                            {new Date(collection.created_at).toLocaleDateString() !==
-                                new Date(collection.updated_at).toLocaleDateString() && (
-                                    <span>Last Updated: {new Date(collection.updated_at).toLocaleDateString()}</span>
+                            {new Date(collection.created_at).toLocaleString() !==
+                                new Date(collection.updated_at).toLocaleString() && (
+                                    <span> Updated: {new Date(collection.updated_at).toLocaleDateString()}</span>
                                 )}
                         </div>
                     </>
