@@ -1,6 +1,6 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
-use rusqlite::{params, Result};
+use rusqlite::{Connection, Result, params};
 use tauri::command;
 
 use tauri::{AppHandle};
@@ -10,7 +10,7 @@ mod models;
 mod utils;
 
 use db::connection::establish_connection;
-use models::{Collection, Card};
+use models::{Collection, Card, MtgCardPayload};
 
 // Function to initialize the database and create tables
 #[command]
@@ -136,40 +136,73 @@ fn get_collection(app_handle: AppHandle, collection_id: i64) -> Result<Collectio
 
 // #region Card CRUD
 
-// Add a card
-#[command]
-fn add_card(app_handle: AppHandle, game_id: &str, name: &str) -> Result<(), String> {
-    let conn = establish_connection(app_handle).map_err(|e| e.to_string())?;
+// Private per-game helpers
+fn add_mtg_card(conn: &Connection, collection_id: i64, card: MtgCardPayload) -> Result<(), String> {
     conn.execute(
-        "INSERT INTO cards (game_id, name) VALUES (?1, ?2)",
-        params![game_id, name],
-    )
-    .map_err(|e| e.to_string())?;
+        "INSERT OR IGNORE INTO cards_mtg
+            (scryfall_id, name, set_name, rarity, image_url, mana_cost, cmc,
+             color_identity, type_line, keywords, oracle_text, power, toughness, loyalty)
+         VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11,?12,?13,?14)",
+        params![
+            card.scryfall_id, card.name, card.set_name, card.rarity, card.image_url,
+            card.mana_cost, card.cmc, card.color_identity, card.type_line,
+            card.keywords, card.oracle_text, card.power, card.toughness, card.loyalty
+        ],
+    ).map_err(|e| e.to_string())?;
+
+    let card_id: i64 = conn
+        .query_row("SELECT id FROM cards_mtg WHERE scryfall_id = ?1", params![card.scryfall_id], |row| row.get(0))
+        .map_err(|e| e.to_string())?;
+
+    conn.execute("INSERT INTO collection_cards (collection_id, game_id, card_id, qtt)
+                VALUES (?1, 'MtG', ?2, ?3)
+                ON CONFLICT(collection_id, card_id) DO UPDATE SET qtt = qtt + excluded.qtt", 
+                params![collection_id, card_id, card.qtt],
+            ).map_err(|e| e.to_string())?;
+
+    Ok(())
+}
+
+// fn add_pkmn_card(conn: &Connection, collection_id: i64, card: PkmnCardPayload) -> Result<(), String> { ... }
+// fn add_ygo_card(conn: &Connection, collection_id: i64, card: YgoCardPayload)  -> Result<(), String> { ... }
+
+// Public - Add a card
+#[command]
+fn add_card(app_handle: AppHandle, collection_id: i64, game_id: &str, card_data: serde_json::Value) -> Result<(), String> {
+    let conn = establish_connection(app_handle).map_err(|e| e.to_string())?;
+
+    match game_id {
+        "MtG" => add_mtg_card(&conn, collection_id, serde_json::from_value(card_data).map_err(|e| e.to_string())?),
+        "PKMN" => Err("Pokémon not yet implement".to_string()),
+        "YGO" => Err("Yu-Gi-Oh! not yet implemented".to_string()),
+        _   => Err(format!("Unknown game_id: {}", game_id)),
+    }?;
+
+    conn.execute(
+        "UPDATE collections SET updated_at = CURRENT_TIMESTAMP WHERE id = ?1", 
+        params![collection_id],
+    ).map_err(|e| e.to_string())?;
+
     Ok(())
 }
 
 // Get cards from a collection
 #[command]
 fn get_cards(app_handle: AppHandle, collection_id: i64, game_id: &str) -> Result<Vec<Card>, String> {
-    let mut card_table = "";
-    match game_id{
-        "MtG" =>card_table = "cards_mtg",
-        "PKMN" =>card_table = "",
-        "YGO" =>card_table = "",
-        _=>println!("Unknown game.")
-    }
 
     let conn = establish_connection(app_handle).map_err(|e| e.to_string())?;
+    let query = format!("SELECT cc.id, cm.name, cm.image_url, cc.qtt FROM collection_cards AS cc JOIN cards_mtg AS cm ON cc.card_id = cm.id WHERE collection_id = ?1");
     let mut stmt = conn
-        .prepare("SELECT id, name, collection_id, qtt FROM cards WHERE collection_id = ?1")
+        .prepare(&query)
         .map_err(|e| e.to_string())?;
 
     let cards = stmt
         .query_map([collection_id], |row| {
             Ok(Card {
                 id: row.get(0)?,
+                collection_id: collection_id,
                 name: row.get(1)?,
-                collection_id: row.get(2)?,
+                image_url: row.get(2)?,
                 qtt: row.get(3)?
             })
         })
@@ -182,6 +215,33 @@ fn get_cards(app_handle: AppHandle, collection_id: i64, game_id: &str) -> Result
 
 // #endregion
 
+#[command]
+fn debug_schema(app_handle: AppHandle) -> Result<Vec<String>, String> {
+
+    #[cfg(not(debug_assertions))]
+    return Err("Not available in release builds".to_string());
+
+    #[cfg(debug_assertions)]
+    {
+        let conn = establish_connection(app_handle).map_err(|e| e.to_string())?;
+        let mut stmt = conn.prepare(
+            "SELECT name, sql FROM sqlite_master WHERE type='table' ORDER BY name"
+        ).map_err(|e| e.to_string())?;
+
+        let rows = stmt.query_map([], |row| {
+            Ok(format!("{}\n{}",
+                row.get::<_, String>(0)?,
+                row.get::<_, String>(1)?
+            ))
+        })
+        .map_err(|e| e.to_string())?
+        .collect::<Result<Vec<_>, _>>()
+        .map_err(|e| e.to_string())?;
+
+        Ok(rows)
+    }
+}
+
 fn main() {
     tauri::Builder::default()
         .invoke_handler(tauri::generate_handler![
@@ -190,7 +250,8 @@ fn main() {
             get_collections,
             get_collection,
             add_card,
-            get_cards
+            get_cards,
+            debug_schema,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri app");

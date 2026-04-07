@@ -1,24 +1,25 @@
 export interface MagicTG {
     id: number;
-    collection_id: number; 
+    scryfall_id: string; 
 
     name: string;
     set_name: string;
     rarity: string;
-    qtt: number;
     image_url: string;
 
-    mana_cost: string;  // Format example: '3colorless|2blue|1white'
-    color_identity: string; // Format example: 'blue|white'
-    typr_line: string;
+    mana_cost: string;
+    cmc: string;
+    color_identity: string;
+    type_line: string;
     
-    traits: string; // 'Flying|Haste|etc'
-    habilities: string; // 'Tap|Pay 1 and tap to do something'
-    effects: string;    // Instant|Sorcery|Enchantment effect or creature conditional effect
+    keywords: string; 
+    oracle_text: string; 
 
     power: number;
     toughness: number;
     loyalty: number;
+
+    qtt: number;
 }
 
 export interface Pokemon {
@@ -27,4 +28,18 @@ export interface Pokemon {
 
 export interface Yugioh {
     //TODO
+}
+
+export interface CollectionCard {   // Mirrors collection_cards table
+    id: number;
+    collection_id: number;
+    game_id: string;
+    card_id: number;
+    qtt: number;
+}
+
+export interface CollectionCardDetail<T> {
+    collection_card_id: number;
+    qtt: number;
+    card: T;
 }

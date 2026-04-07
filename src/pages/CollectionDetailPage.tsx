@@ -103,8 +103,20 @@ export default function CollectionDetailPage() {
 
 
                 {cards.map((card) => (
-                    <div key={card.id}>
-                        {/* TODO: card tile */}
+                    <div key={card.id} className="card collection-card">
+                        <img
+                            src={card.image_url}
+                            alt={card.name}
+                            style={{ width: "100%", height: "auto", borderRadius:"5.5%/4.5%" }}
+                        />
+                        {card.qtt > 1 && (
+                            <div style={{
+                                position: "absolute", bottom: 6, right: 8, background: "rgba(0, 0, 0, 0.65)",
+                                color: "white", borderRadius: 6, padding: "2px 7px", fontSize: "0.85em"
+                            }}>
+                                ×{card.qtt}
+                            </div>
+                        )}
                     </div>
                 ))}
             </div>
@@ -115,6 +127,7 @@ export default function CollectionDetailPage() {
                     collectionId={collectionId}
                     onClose={() => setShowSearchModal(false)}
                     onCardAdded={(card) => setCards(prev => [...prev, card])}
+                    existingCards={cards}
                 />
             )}
         </div>

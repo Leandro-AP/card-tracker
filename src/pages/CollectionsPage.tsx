@@ -26,6 +26,13 @@ export default function CollectionsPage() {
   React.useEffect(() => {
     const init = async () => {
       await invoke("init_db");
+
+      // temp
+      if (import.meta.env.DEV) {
+        const schema = await invoke("debug_schema");
+        console.log("[debug_schema]", schema);
+      }
+
       const result = await invoke<Collection[]>("get_collections");
       setCollections(result);
       console.log(result)

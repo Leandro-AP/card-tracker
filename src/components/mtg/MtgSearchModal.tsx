@@ -66,9 +66,10 @@ interface Props {
     collectionId: number;
     onClose: () => void;
     onCardAdded: (card: MagicTG) => void;
+    existingCards: any[];
 }
 
-export default function MtgSearchModal({ collectionId, onClose, onCardAdded}: Props) {
+export default function MtgSearchModal({ collectionId, onClose, onCardAdded, existingCards}: Props) {
     const [searchMode, setSearchMode] = useState<"name" | "set" | "type" | "mana">("name")
     const [searchValue, setSearchValue] = useState("")
     const [searchResults, setSearchResults] = useState<any[]>([])
@@ -76,6 +77,9 @@ export default function MtgSearchModal({ collectionId, onClose, onCardAdded}: Pr
     const [nextPage, setNextPage] = useState<string | null>(null)
     const [isLoadingMore, setIsLoadingMore] = useState(false)
     const cardListRef = useRef<HTMLDivElement>(null)
+
+    const [pendingCard, setPendingCard] = useState<any>(null)
+    const [qttToAdd, setQttToAdd] = useState(1)
 
     const [manaFilter, setManaFilter] = useState<ManaFilter>({ 
         W: -1, U: -1, B: -1, R: -1, G: -1, C: -1
@@ -155,11 +159,59 @@ export default function MtgSearchModal({ collectionId, onClose, onCardAdded}: Pr
         return []
     }
 
-    const handleAddCard = async (scryfallCard: any) => {
-        console.log("Tried to add card: " + scryfallCard.name)
-        // TODO: map scryfallCard to MagicTG
-        // await invoke("add_card", { collectionId, gameId: "MtG", ...mappedFields})
-        // onCardAdded(mappedCard)
+    const handleAddCard = async (scryfallCard: any, qtt: number) => {
+        console.log(scryfallCard)
+        const [front] = getCardImages(scryfallCard)
+
+        try {
+            await invoke("add_card", {
+                collectionId,
+                gameId: "MtG",
+                cardData: {
+                    scryfall_id:    scryfallCard.id,
+                    name:           scryfallCard.name,
+                    set_name:       scryfallCard.set_name   ?? "N/A",
+                    rarity:         scryfallCard.rarity     ?? "N/A",
+                    image_url:      front  ?? "N/A",
+                    mana_cost:      scryfallCard.mana_cost  ?? "N/A",
+                    cmc:            Math.round(scryfallCard.cmc ?? 0),
+                    color_identity: scryfallCard.color_identity.toString(),
+                    type_line:      scryfallCard.type_line  ?? "N/A",
+                    keywords:       scryfallCard.keywords.toString(),
+                    oracle_text:    scryfallCard.oracle_text    ?? "N/A",
+                    power:          scryfallCard.power      ?? "N/A",
+                    toughness:      scryfallCard.toughness  ?? "N/A",
+                    loyalty:        scryfallCard.loyalty    ?? "N/A",
+                    qtt,
+                }
+            })
+
+            //Build a local object to pass back up without a re-fetch
+            const added: MagicTG = {
+                id: 0,
+                scryfall_id:    scryfallCard.id,
+                name:           scryfallCard.name,
+                set_name:       scryfallCard.set_name   ?? "N/A",
+                rarity:         scryfallCard.rarity     ?? "N/A",
+                image_url:      front  ?? "N/A",
+                mana_cost:      scryfallCard.mana_cost  ?? "N/A",
+                cmc:            scryfallCard.cmc        ?? "N/A",
+                color_identity: scryfallCard.color_identity.toString(),
+                type_line:      scryfallCard.type_line  ?? "N/A",
+                keywords:       scryfallCard.keywords.toString(),
+                oracle_text:    scryfallCard.oracle_text    ?? "N/A",
+                power:          scryfallCard.power      ?? "N/A",
+                toughness:      scryfallCard.toughness  ?? "N/A",
+                loyalty:        scryfallCard.loyalty    ?? "N/A",
+                qtt
+            }
+
+            onCardAdded(added)
+            setPendingCard(null)
+        } catch (err) {
+            console.error("Failed to add card:")
+            console.error(err)
+        }
     }
 
     return (
@@ -212,7 +264,7 @@ export default function MtgSearchModal({ collectionId, onClose, onCardAdded}: Pr
                     <ManaSelector mana={manaFilter} setMana={setManaFilter} />
                 )}
 
-                <div className="modal-card-list" ref={cardListRef} onScroll={onCardListScroll}>
+                <div className="modal-card-list" ref={cardListRef} onScroll={onCardListScroll} onMouseLeave={() => setHoveredCard(null)}>
                     {searchResults.map((card) => {
                         const [front] = getCardImages(card)
                         return front && (
@@ -223,13 +275,95 @@ export default function MtgSearchModal({ collectionId, onClose, onCardAdded}: Pr
                                 className="modal-card-image"
                                 loading="lazy"
                                 onMouseEnter={() => setHoveredCard(card)}
-                                onMouseLeave={() => setHoveredCard(null)}
-                                onClick={() => handleAddCard(card)}
+                                onClick={() => {
+                                    setPendingCard(card)
+                                    setQttToAdd(1)
+                                }}
                             />
                         )
                     })}
                 </div>
             </div>
+
+            {pendingCard && (() => {
+                const [frontImg] = getCardImages(pendingCard)
+                const existingQtt = existingCards
+                    .filter(c => c.scryfall_id === pendingCard.id)
+                    .reduce((sum,  c) => sum + c.qtt, 0)
+
+                return (
+                    <div
+                        className="modal-backdrop"
+                        style={{ zIndex: 12 }}
+                        onClick={() => setPendingCard(null)}
+                    >
+                        <div className="modal" style={{ maxWidth: 360 }} onClick={e => e.stopPropagation()}>
+                            <h2>Add to Collection?</h2>
+
+                            {frontImg && (
+                                <img
+                                    src={frontImg}
+                                    alt={pendingCard.name}
+                                    style={{ width: "100%", borderRadius: "5.5%/4.5%", marginBottom: "1em" }}
+                                />
+                            )}
+
+                            <p style={{ textAlign: "center", margin: "0.5em 0" }}>
+                                <strong>{pendingCard.name}</strong>
+                            </p>
+
+                            {existingQtt > 0 && (
+                                <p style={{ textAlign: "center", color: "#888", fontSize: "0.9em" }}>
+                                    In collection: {existingQtt}
+                                </p>
+                            )}
+
+                            <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "0.5em", margin: "1em 0"}}>
+                                <button onClick={() => setQttToAdd(q => Math.max(1, q - 1))}
+                                    style={{ width: 28, height: 28, padding: 0, fontSize: "1rem", lineHeight: 1 }}
+                                >-</button>
+                                <input
+                                    type="text"
+                                    inputMode="numeric"
+                                    value={qttToAdd}
+                                    onChange={(e) => {
+                                        const raw = e.target.value.replace(/\D/g, "")   // strip non-digits
+                                        const num = parseInt(raw)
+                                        if (!isNaN(num) && num >= 1) {
+                                            if(num > 100) setQttToAdd(100)
+                                            else setQttToAdd(num)
+                                        }
+                                        else if(raw == "") setQttToAdd(1)
+                                    }}
+                                    style={{
+                                        width: "5ch",
+                                        textAlign: "center",
+                                        fontSize: "1.1em",
+                                        padding: "0.25em",
+                                        borderRadius: 6,
+                                        border: "1px solid #ccc",
+                                        boxShadow: "none"
+                                    }}
+                                />
+                                <button
+                                    onClick={() => setQttToAdd(q => Math.min(100, q + 1))}
+                                    style={{ width: 26, height: 28, padding: 0, fontSize: "1rem", lineHeight: 1 }}
+                                >+</button>
+                            </div>
+
+                            <button onClick={() => handleAddCard(pendingCard, qttToAdd)}>
+                                Add
+                            </button>
+                            <button 
+                                onClick={() => setPendingCard(null)}
+                                style={{ marginTop: "0.5em", background: "transparent", boxShadow: "none", color: "#888" }}
+                            >
+                                Cancel
+                            </button>
+                        </div>
+                    </div>
+                )
+            })()}
 
             {hoveredCard && (
                 <div className="modal-preview">
